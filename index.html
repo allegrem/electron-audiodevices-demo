@@ -24,7 +24,7 @@
     </style>
   </head>
   <body>
-    <h1>Demo 2 - ondevicechange</h1>
+    <h1>Demo 3 - ondevicechange + notifications</h1>
 
     <table id="device-list">
       <thead>
@@ -42,6 +42,10 @@
   </body>
 
   <script>
+  let previousDeviceList = []
+
+  const deviceEquals = (d1, d2) => d1.kind === d2.kind && d1.deviceId === d2.deviceId
+
   const refreshDevices = function() {
     navigator.mediaDevices.enumerateDevices()
       .then((devices) => {
@@ -55,8 +59,15 @@
                           `<td>${device.groupId}</td>`
           deviceList.appendChild(row)
         });
-      });
-  };
+
+        if (previousDeviceList.length > 0) {
+          devices.filter((device) => !previousDeviceList.find((previousDevice) => deviceEquals(device, previousDevice)))
+            .forEach((device) => new Notification('New device detected', { body: `You just plugged in ${device.label}` }))
+        }
+
+        previousDeviceList = devices
+      })
+  }
 
   refreshDevices()
 
