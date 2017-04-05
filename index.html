@@ -4,73 +4,84 @@
     <meta charset="UTF-8">
     <title>Managing Audio Devices with Electron</title>
     <style>
-      #device-list th:first-of-type, #device-list td:first-of-type {
-        font-weight: bold;
+      label {
+        display: block;
+        margin-bottom: 1em;
       }
 
-      #device-list td:nth-child(3), #device-list td:nth-child(4) {
-        font-size: .7em;
-        font-family: monospace;
-      }
-
-      #device-list {
-        border-collapse: collapse;
-      }
-
-      #device-list td {
-        border: solid 1px #ccc;
-        padding: .5em;
+      audio {
+        display: block;
+        width: 100%;
+        margin-top: 2em;
       }
     </style>
   </head>
   <body>
-    <h1>Demo 3 - ondevicechange + notifications</h1>
+    <h1>Demo 4 - getUserMedia</h1>
 
-    <table id="device-list">
-      <thead>
-        <tr>
-          <th>Label</th>
-          <th>Kind</th>
-          <th>Device ID</th>
-          <th>Group ID</th>
-        </tr>
-      </thead>
-      <tbody id="device-list-body">
+    <label>
+      Input device
+      <select id="input-device-selector"></select>
+    </label>
 
-      </tbody>
-    </table>
+    <label>
+      Output device
+      <select id="output-device-selector"></select>
+    </label>
+
+    <button id="start-capture">Start capture</button>
+
+    <audio id="audio-player" controls autoplay></audio>
   </body>
 
   <script>
-  let previousDeviceList = []
-
-  const deviceEquals = (d1, d2) => d1.kind === d2.kind && d1.deviceId === d2.deviceId
+  const inputDeviceSelector = document.getElementById('input-device-selector')
+  const outputDeviceSelector = document.getElementById('output-device-selector')
+  const audioElement = document.getElementById('audio-player')
 
   const refreshDevices = function() {
     navigator.mediaDevices.enumerateDevices()
       .then((devices) => {
-        const deviceList = document.getElementById('device-list-body')
-        deviceList.innerHTML = null
+        inputDeviceSelector.innerHTML = null
+        outputDeviceSelector.innerHTML = null
+
         devices.forEach((device) => {
-          const row = document.createElement('tr');
-          row.innerHTML = `<td>${device.label}</td>` +
-                          `<td>${device.kind}</td>` +
-                          `<td>${device.deviceId}</td>` +
-                          `<td>${device.groupId}</td>`
-          deviceList.appendChild(row)
-        });
+          if (!device.kind.includes('audio')) return
+          const option = document.createElement('option')
+          option.value = device.deviceId
+          option.textContent = device.label;
+          (device.kind.includes('input') ? inputDeviceSelector : outputDeviceSelector).add(option)
+        })
 
-        if (previousDeviceList.length > 0) {
-          devices.filter((device) => !previousDeviceList.find((previousDevice) => deviceEquals(device, previousDevice)))
-            .forEach((device) => new Notification('New device detected', { body: `You just plugged in ${device.label}` }))
-        }
-
-        previousDeviceList = devices
+        audioElement.setSinkId(null)
+        audioElement.srcObject = null
       })
   }
 
   refreshDevices()
 
   navigator.mediaDevices.addEventListener('devicechange', refreshDevices)
+
+  document.getElementById('start-capture').addEventListener('click', () => {
+    const selectedInputId = inputDeviceSelector.options[inputDeviceSelector.selectedIndex].value
+    const selectedOutputId = outputDeviceSelector.options[outputDeviceSelector.selectedIndex].value
+
+    const constraints = {
+      audio: {
+        deviceId: selectedInputId
+      },
+      video: false
+    }
+
+    Promise.all([
+      navigator.mediaDevices.getUserMedia(constraints),
+      audioElement.setSinkId(selectedOutputId)
+    ])
+    .then((resolvedValues) => {
+      const stream = resolvedValues[0]
+      audioElement.srcObject = stream
+    })
+    .catch((err) => console.error(err))
+  })
   </script>
 </html>
