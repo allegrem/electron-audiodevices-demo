@@ -15,7 +15,10 @@ function createWindow () {
   // Create the browser window.
   const browserOpts = {
     width: 1000,
-    height: 600
+    height: 600,
+    webPreferences: {
+      blinkFeatures: 'OnDeviceChange'
+    }
   }
   mainWindow = new BrowserWindow(browserOpts)
 
