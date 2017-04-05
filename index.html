@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Managing Audio Devices with Electron</title>
+    <style>
+      #device-list th:first-of-type, #device-list td:first-of-type {
+        font-weight: bold;
+      }
+
+      #device-list td:nth-child(3), #device-list td:nth-child(4) {
+        font-size: .7em;
+        font-family: monospace;
+      }
+
+      #device-list {
+        border-collapse: collapse;
+      }
+
+      #device-list td {
+        border: solid 1px #ccc;
+        padding: .5em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Demo 1 - enumerateDevices()</h1>
+
+    <table id="device-list">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Kind</th>
+          <th>Device ID</th>
+          <th>Group ID</th>
+        </tr>
+      </thead>
+      <tbody id="device-list-body">
+
+      </tbody>
+    </table>
+  </body>
+
+  <script>
+  const refreshDevices = function() {
+    navigator.mediaDevices.enumerateDevices()
+      .then((devices) => {
+        const deviceList = document.getElementById('device-list-body')
+        deviceList.innerHTML = null
+        devices.forEach((device) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `<td>${device.label}</td>` +
+                          `<td>${device.kind}</td>` +
+                          `<td>${device.deviceId}</td>` +
+                          `<td>${device.groupId}</td>`
+          deviceList.appendChild(row)
+        });
+      });
+  };
+
+  refreshDevices()
+  </script>
+</html>
