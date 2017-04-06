@@ -6,82 +6,65 @@
     <style>
       label {
         display: block;
-        margin-bottom: 1em;
+        font-weight: bold;
+        margin-bottom: 2em;
       }
 
-      audio {
+      progress {
         display: block;
-        width: 100%;
-        margin-top: 2em;
       }
     </style>
   </head>
   <body>
-    <h1>Demo 4 - getUserMedia</h1>
+    <h1>Demo 5 - input level</h1>
 
-    <label>
-      Input device
-      <select id="input-device-selector"></select>
-    </label>
+    <div id="container">
 
-    <label>
-      Output device
-      <select id="output-device-selector"></select>
-    </label>
-
-    <button id="start-capture">Start capture</button>
-
-    <audio id="audio-player" controls autoplay></audio>
+    </div>
   </body>
 
   <script>
-  const inputDeviceSelector = document.getElementById('input-device-selector')
-  const outputDeviceSelector = document.getElementById('output-device-selector')
-  const audioElement = document.getElementById('audio-player')
+  const containerEl = document.getElementById('container')
+  const deviceAnalysers = {}
+  const audioContext = new AudioContext()
+  const fftSize = 2048
+  const dataArray = new Uint8Array(fftSize)
 
-  const refreshDevices = function() {
-    navigator.mediaDevices.enumerateDevices()
-      .then((devices) => {
-        inputDeviceSelector.innerHTML = null
-        outputDeviceSelector.innerHTML = null
-
-        devices.forEach((device) => {
-          if (!device.kind.includes('audio')) return
-          const option = document.createElement('option')
-          option.value = device.deviceId
-          option.textContent = device.label;
-          (device.kind.includes('input') ? inputDeviceSelector : outputDeviceSelector).add(option)
-        })
-
-        audioElement.setSinkId(null)
-        audioElement.srcObject = null
-      })
+  const updateInputValues = function() {
+    for (var deviceId in deviceAnalysers) {
+      const volumeAnalyser = deviceAnalysers[deviceId]
+      const progressEl = document.getElementById('progress-' + deviceId)
+      volumeAnalyser.getByteFrequencyData(dataArray)
+      progressEl.value = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
+    }
+    window.requestAnimationFrame(updateInputValues)
   }
 
-  refreshDevices()
+  navigator.mediaDevices.enumerateDevices().then((devices) => {
+    const streamReadyPromises = devices
+    .filter((device) => device.kind === 'audioinput')
+    .map((device) => {
+      const labelEl = document.createElement('label')
+      labelEl.textContent = device.label
+      containerEl.append(labelEl)
 
-  navigator.mediaDevices.addEventListener('devicechange', refreshDevices)
+      const progressEl = document.createElement('progress')
+      progressEl.id = 'progress-' + device.deviceId
+      progressEl.max = 128
+      progressEl.value = 0
+      labelEl.append(progressEl)
 
-  document.getElementById('start-capture').addEventListener('click', () => {
-    const selectedInputId = inputDeviceSelector.options[inputDeviceSelector.selectedIndex].value
-    const selectedOutputId = outputDeviceSelector.options[outputDeviceSelector.selectedIndex].value
-
-    const constraints = {
-      audio: {
-        deviceId: selectedInputId
-      },
-      video: false
-    }
-
-    Promise.all([
-      navigator.mediaDevices.getUserMedia(constraints),
-      audioElement.setSinkId(selectedOutputId)
-    ])
-    .then((resolvedValues) => {
-      const stream = resolvedValues[0]
-      audioElement.srcObject = stream
+      return navigator.mediaDevices.getUserMedia({ audio: { deviceId: device.deviceId }, video: false })
+      .then((stream) => {
+        const source = audioContext.createMediaStreamSource(stream)
+        const volumeAnalyser = audioContext.createAnalyser()
+        volumeAnalyser.fftSize = fftSize
+        source.connect(volumeAnalyser)
+        deviceAnalysers[device.deviceId] = volumeAnalyser
+      })
     })
-    .catch((err) => console.error(err))
+
+    Promise.all(streamReadyPromises).then(() => window.requestAnimationFrame(updateInputValues))
   })
   </script>
 </html>
